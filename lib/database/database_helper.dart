@@ -4,9 +4,9 @@ import 'package:sqflite/sqflite.dart';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
 
-  DatabaseHelper._init();
-
   static Database? _database;
+
+  DatabaseHelper._init();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -17,7 +17,6 @@ class DatabaseHelper {
 
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
-
     final path = join(dbPath, filePath);
 
     return await openDatabase(
@@ -27,77 +26,94 @@ class DatabaseHelper {
     );
   }
 
-  Future _createDB(Database db, int version) async {
+  Future<void> _createDB(Database db, int version) async {
     await db.execute('''
-CREATE TABLE transactions(
-
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-title TEXT NOT NULL,
-
-amount REAL NOT NULL,
-
-type TEXT NOT NULL,
-
-category TEXT NOT NULL,
-
-note TEXT,
-
-date TEXT,
-
-receipt TEXT,
-
-created_at TEXT
-
-)
-''');
+      CREATE TABLE transactions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        merchant TEXT,
+        note TEXT,
+        date TEXT,
+        receipt TEXT,
+        created_at TEXT
+      )
+    ''');
   }
+
+  // =========================
+  // INSERT
+  // =========================
+
+  Future<int> insertTransaction(Map<String, dynamic> row) async {
+    final db = await database;
+
+    return await db.insert(
+      'transactions',
+      row,
+    );
+  }
+
+  // =========================
+  // GET ALL
+  // =========================
+
+  Future<List<Map<String, dynamic>>> getTransactions() async {
+    final db = await database;
+
+    return await db.query(
+      'transactions',
+      orderBy: 'id DESC',
+    );
+  }
+
+  // =========================
+  // UPDATE
+  // =========================
+
+  Future<int> updateTransaction(Map<String, dynamic> row) async {
+    final db = await database;
+
+    return await db.update(
+      'transactions',
+      row,
+      where: 'id = ?',
+      whereArgs: [row['id']],
+    );
+  }
+
+  // =========================
+  // DELETE
+  // =========================
+
+  Future<int> deleteTransaction(int id) async {
+    final db = await database;
+
+    return await db.delete(
+      'transactions',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // =========================
+  // DELETE ALL
+  // =========================
+
+  Future<int> deleteAllTransactions() async {
+    final db = await database;
+
+    return await db.delete('transactions');
+  }
+
+  // =========================
+  // CLOSE DATABASE
+  // =========================
 
   Future close() async {
-    final db = await instance.database;
-
+    final db = await database;
     db.close();
   }
-
-  Future<int> insertTransaction(Map<String, dynamic> data) async {
-  final db = await instance.database;
-
-  return await db.insert(
-    'transactions',
-    data,
-  );
-}
-
-Future<List<Map<String, dynamic>>> getTransactions() async {
-  final db = await instance.database;
-
-  return await db.query(
-    'transactions',
-    orderBy: 'id DESC',
-  );
-}
-
-Future<int> updateTransaction(
-    int id,
-    Map<String, dynamic> data,
-    ) async {
-  final db = await instance.database;
-
-  return await db.update(
-    'transactions',
-    data,
-    where: 'id=?',
-    whereArgs: [id],
-  );
-}
-
-Future<int> deleteTransaction(int id) async {
-  final db = await instance.database;
-
-  return await db.delete(
-    'transactions',
-    where: 'id=?',
-    whereArgs: [id],
-  );
-}
 }
