@@ -1,12 +1,22 @@
 class TransactionModel {
   int? id;
+
   String title;
+
   double amount;
-  String type; // income / expense
+
+  String type;
+
   String category;
+
+  String merchant;
+
   String note;
+
   String date;
+
   String? receipt;
+
   String createdAt;
 
   TransactionModel({
@@ -15,6 +25,7 @@ class TransactionModel {
     required this.amount,
     required this.type,
     required this.category,
+    required this.merchant,
     required this.note,
     required this.date,
     this.receipt,
@@ -28,6 +39,7 @@ class TransactionModel {
       'amount': amount,
       'type': type,
       'category': category,
+      'merchant': merchant,
       'note': note,
       'date': date,
       'receipt': receipt,
@@ -39,12 +51,11 @@ class TransactionModel {
     return TransactionModel(
       id: map['id'],
       title: map['title'],
-      amount: map['amount'] is int
-          ? (map['amount'] as int).toDouble()
-          : map['amount'],
+      amount: (map['amount'] as num).toDouble(),
       type: map['type'],
       category: map['category'],
-      note: map['note'],
+      merchant: map['merchant'] ?? '',
+      note: map['note'] ?? '',
       date: map['date'],
       receipt: map['receipt'],
       createdAt: map['created_at'],

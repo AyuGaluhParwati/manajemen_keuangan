@@ -8,7 +8,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    _isLogin = prefs.getBool('login') ?? false;
+    _isLogin = prefs.getBool("login") ?? false;
     notifyListeners();
   }
 
@@ -16,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
     if (email == "admin@gmail.com" &&
         password == "123456") {
       final prefs = await SharedPreferences.getInstance();
+
       await prefs.setBool("login", true);
 
       _isLogin = true;
@@ -31,7 +32,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.remove("login");
+    await prefs.clear();
 
     _isLogin = false;
 
