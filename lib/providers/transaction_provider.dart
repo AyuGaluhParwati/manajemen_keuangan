@@ -13,7 +13,7 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // ===========================
-  // LOAD DATA DARI SQLITE
+  // LOAD SQLITE
   // ===========================
   Future<void> loadTransactions() async {
     final data = await DatabaseHelper.instance.getTransactions();
@@ -25,7 +25,7 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // ===========================
-  // TAMBAH TRANSAKSI
+  // INSERT
   // ===========================
   Future<void> addTransaction(TransactionModel transaction) async {
     await DatabaseHelper.instance.insertTransaction(
@@ -36,12 +36,66 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // ===========================
-  // HAPUS TRANSAKSI
+  // DELETE
   // ===========================
   Future<void> deleteTransaction(int id) async {
     await DatabaseHelper.instance.deleteTransaction(id);
 
     await loadTransactions();
+  }
+
+  // ===========================
+  // UPDATE
+  // ===========================
+  Future<void> updateTransaction(
+      TransactionModel transaction) async {
+    await DatabaseHelper.instance.updateTransaction(
+      transaction.toMap(),
+    );
+
+    await loadTransactions();
+  }
+
+  // ===========================
+  // FILTER
+  // ===========================
+  List<TransactionModel> getFilteredTransactions(
+      String filter,
+      DateTimeRange? range,
+      ) {
+    if (filter == "Realtime") {
+      return _transactions;
+    }
+
+    if (filter == "Bulanan") {
+      final now = DateTime.now();
+
+      return _transactions.where((trx) {
+        final date = DateTime.parse(trx.createdAt);
+
+        return date.month == now.month &&
+            date.year == now.year;
+      }).toList();
+    }
+
+    if (filter == "Custom" && range != null) {
+      return _transactions.where((trx) {
+        final date = DateTime.parse(trx.createdAt);
+
+        return date.isAfter(
+          range.start.subtract(
+            const Duration(days: 1),
+          ),
+        ) &&
+            date.isBefore(
+              range.end.add(
+                const Duration(days: 1),
+              ),
+            );
+      }).toList();
+    }
+
+    return _transactions;
   }
 
   // ===========================

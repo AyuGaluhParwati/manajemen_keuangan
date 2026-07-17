@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'add_transaction_screen.dart';
 
 import '../providers/transaction_provider.dart';
+import '../providers/profile_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TransactionProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<TransactionProvider, ProfileProvider>(
+      builder: (context, transactionProvider, profileProvider, child) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -17,7 +20,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               /// Header
               Text(
-                "Hallo, Galuh 👋",
+                "Hallo, ${profileProvider.name} 👋",
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
 
@@ -48,7 +51,9 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 10),
 
                       Text(
-                        "Rp ${provider.balance.toStringAsFixed(0)}",
+                        CurrencyFormatter.format(
+                          transactionProvider.balance,
+                        ),
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -69,7 +74,9 @@ class HomeScreen extends StatelessWidget {
                               const SizedBox(height: 5),
 
                               Text(
-                                "Rp ${provider.totalIncome.toStringAsFixed(0)}",
+                                CurrencyFormatter.format(
+                                  transactionProvider.totalIncome,
+                                ),
                                 style: const TextStyle(
                                   color: Colors.blue,
                                   fontWeight: FontWeight.bold,
@@ -85,7 +92,9 @@ class HomeScreen extends StatelessWidget {
                               const SizedBox(height: 5),
 
                               Text(
-                                "Rp ${provider.totalExpense.toStringAsFixed(0)}",
+                                CurrencyFormatter.format(
+                                  transactionProvider.totalExpense,
+                                ),
                                 style: const TextStyle(
                                   color: Colors.red,
                                   fontWeight: FontWeight.bold,
@@ -112,7 +121,7 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              provider.transactions.isEmpty
+              transactionProvider.transactions.isEmpty
                   ? Card(
                       child: Padding(
                         padding: const EdgeInsets.all(20),
@@ -136,65 +145,78 @@ class HomeScreen extends StatelessWidget {
                       shrinkWrap: true,
                       physics:
                           const NeverScrollableScrollPhysics(),
-                      itemCount: provider.transactions.length,
+                      itemCount: transactionProvider.transactions.length,
                       itemBuilder: (context, index) {
-                        final trx = provider.transactions[index];
+                        final trx = transactionProvider.transactions[index];
 
                         return Card(
                           elevation: 2,
                           margin:
                               const EdgeInsets.only(bottom: 12),
                           child: ListTile(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+
+                                  builder: (_) => AddTransactionScreen(
+                                    transaction: trx,
+                                  ),
+                                ),
+                              );
+                            },
+
                             onLongPress: () async {
                               final confirm =
-                                  await showDialog<bool>(
+                              await showDialog<bool>(
                                 context: context,
+
                                 builder: (_) => AlertDialog(
-                                  title: const Text(
-                                      "Hapus Transaksi"),
+                                  title: const Text("Hapus Transaksi"),
+
                                   content: const Text(
-                                      "Apakah Anda yakin ingin menghapus transaksi ini?"),
+                                    "Apakah Anda yakin ingin menghapus transaksi ini?",
+                                  ),
+
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
-                                          Navigator.pop(
-                                              context, false),
-                                      child:
-                                          const Text("Batal"),
+                                          Navigator.pop(context, false),
+
+                                      child: const Text("Batal"),
+
                                     ),
+
                                     ElevatedButton(
-                                      style: ElevatedButton
-                                          .styleFrom(
-                                        backgroundColor:
-                                            Colors.red,
+
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
                                       ),
+
                                       onPressed: () =>
-                                          Navigator.pop(
-                                              context, true),
+                                          Navigator.pop(context, true),
+
                                       child: const Text(
                                         "Hapus",
                                         style: TextStyle(
-                                            color:
-                                                Colors.white),
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               );
 
-                              if (confirm == true &&
-                                  trx.id != null) {
-                                await provider
-                                    .deleteTransaction(
-                                        trx.id!);
+                              if (confirm == true && trx.id != null) {
+                                await transactionProvider
+                                    .deleteTransaction(trx.id!);
 
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(
-                                          context)
+                                  ScaffoldMessenger.of(context)
                                       .showSnackBar(
+
                                     const SnackBar(
-                                      backgroundColor:
-                                          Colors.red,
+                                      backgroundColor: Colors.red,
                                       content: Text(
                                         "Transaksi berhasil dihapus",
                                       ),
@@ -233,14 +255,12 @@ class HomeScreen extends StatelessWidget {
                             ),
 
                             trailing: Text(
-                              "Rp ${trx.amount.toStringAsFixed(0)}",
+                              CurrencyFormatter.format(trx.amount),
                               style: TextStyle(
-                                fontWeight:
-                                    FontWeight.bold,
-                                color:
-                                    trx.type == "income"
-                                        ? Colors.blue
-                                        : Colors.red,
+                                fontWeight: FontWeight.bold,
+                                color: trx.type == "income"
+                                    ? Colors.blue
+                                    : Colors.red,
                               ),
                             ),
                           ),

@@ -1,16 +1,45 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/transaction_provider.dart';
+import '../utils/currency_formatter.dart';
 
-class ReportScreen extends StatelessWidget {
+class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
 
   @override
+  State<ReportScreen> createState() => _ReportScreenState();
+}
+
+class _ReportScreenState extends State<ReportScreen> {
+
+  String selectedFilter = "Realtime";
+  DateTimeRange? selectedRange;
+
+  @override
   Widget build(BuildContext context) {
+
     return Consumer<TransactionProvider>(
       builder: (context, provider, child) {
+
+        final filtered = provider.getFilteredTransactions(
+          selectedFilter,
+          selectedRange,
+        );
+
+        double income = 0;
+        double expense = 0;
+
+        for (var trx in filtered) {
+          if (trx.type == "income") {
+            income += trx.amount;
+          } else {
+            expense += trx.amount;
+          }
+        }
+
+        final balance = income - expense;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -22,6 +51,56 @@ class ReportScreen extends StatelessWidget {
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+
+              const SizedBox(height: 15),
+
+              Wrap(
+                spacing: 10,
+                children: [
+
+                  ChoiceChip(
+                    label: const Text("Realtime"),
+                    selected: selectedFilter == "Realtime",
+                    onSelected: (_) {
+                      setState(() {
+                        selectedFilter = "Realtime";
+                        selectedRange = null;
+                      });
+                    },
+                  ),
+
+                  ChoiceChip(
+                    label: const Text("Bulanan"),
+                    selected: selectedFilter == "Bulanan",
+                    onSelected: (_) {
+                      setState(() {
+                        selectedFilter = "Bulanan";
+                        selectedRange = null;
+                      });
+                    },
+                  ),
+
+                  ChoiceChip(
+                    label: const Text("Custom"),
+                    selected: selectedFilter == "Custom",
+                    onSelected: (_) async {
+
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime(2035),
+                      );
+
+                      if (picked != null) {
+                        setState(() {
+                          selectedFilter = "Custom";
+                          selectedRange = picked;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
 
               const SizedBox(height: 30),
@@ -40,7 +119,7 @@ class ReportScreen extends StatelessWidget {
                       const SizedBox(height: 10),
 
                       Text(
-                        "Rp ${provider.balance.toStringAsFixed(0)}",
+                        CurrencyFormatter.format(balance),
                         style: const TextStyle(
                           fontSize: 30,
                           color: Colors.green,
@@ -53,44 +132,7 @@ class ReportScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 30),
-
-              const Text(
-                "Pemasukan vs Pengeluaran",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                height: 250,
-                child: PieChart(
-                  PieChartData(
-                    sections: [
-
-                      PieChartSectionData(
-                        value: provider.totalIncome,
-                        color: Colors.blue,
-                        title: "Masuk",
-                        radius: 80,
-                      ),
-
-                      PieChartSectionData(
-                        value: provider.totalExpense,
-                        color: Colors.red,
-                        title: "Keluar",
-                        radius: 80,
-                      ),
-
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
               Card(
                 child: ListTile(
@@ -100,7 +142,7 @@ class ReportScreen extends StatelessWidget {
                   ),
                   title: const Text("Total Pemasukan"),
                   trailing: Text(
-                    "Rp ${provider.totalIncome.toStringAsFixed(0)}",
+                    CurrencyFormatter.format(income),
                   ),
                 ),
               ),
@@ -113,10 +155,11 @@ class ReportScreen extends StatelessWidget {
                   ),
                   title: const Text("Total Pengeluaran"),
                   trailing: Text(
-                    "Rp ${provider.totalExpense.toStringAsFixed(0)}",
+                    CurrencyFormatter.format(expense),
                   ),
                 ),
               ),
+
             ],
           ),
         );

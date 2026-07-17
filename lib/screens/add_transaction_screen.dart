@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+
+import '../services/receipt_ai.dart';
+import '../services/ocr_service.dart';
 
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+
+  final TransactionModel? transaction;
+
+  const AddTransactionScreen({
+    super.key,
+    this.transaction,
+  });
 
   @override
   State<AddTransactionScreen> createState() =>
@@ -23,17 +35,136 @@ class _AddTransactionScreenState
   final amountController = TextEditingController();
   final noteController = TextEditingController();
 
+  File? receiptImage;
+  bool isScanning = false;
   String type = "expense";
-
   String category = "Kos & Makan";
 
   DateTime selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.transaction != null) {
+
+      titleController.text =
+          widget.transaction!.title;
+
+      merchantController.text =
+          widget.transaction!.merchant;
+
+      amountController.text =
+          widget.transaction!.amount.toString();
+
+      noteController.text =
+          widget.transaction!.note;
+
+      type =
+          widget.transaction!.type;
+
+      category =
+          widget.transaction!.category;
+
+      selectedDate =
+          DateFormat("dd MMM yyyy")
+              .parse(widget.transaction!.date);
+    }
+  }
 
   final List<String> categories = [
     "Kos & Makan",
     "Keperluan Kuliah",
     "Hiburan & Self Reward",
   ];
+
+  Future<void> pickImage(ImageSource source) async {
+
+    setState(() {
+      isScanning = true;
+    });
+
+    final picker = ImagePicker();
+
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
+
+    if (file == null) return;
+
+    setState(() {
+      receiptImage = File(file.path);
+    });
+
+    final text =
+    await OCRService.readText(receiptImage!);
+
+    print(text);
+
+    final result = ReceiptAI.parse(text);
+    setState(() {
+
+      merchantController.text =
+      result["merchant"]!;
+
+      amountController.text =
+      result["amount"]!;
+
+      if (result["date"]!.isNotEmpty) {
+        noteController.text =
+        "Tanggal Struk : ${result["date"]}";
+      }
+
+      if (result["merchant"]!
+          .toLowerCase()
+          .contains("indomaret")) {
+
+        category = "Kos & Makan";
+      }
+
+      if (result["merchant"]!
+          .toLowerCase()
+          .contains("alfamart")) {
+
+        category = "Kos & Makan";
+      }
+    });
+    setState(() {
+      isScanning = false;
+    });
+  }
+
+
+  void showImagePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Kamera"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Galeri"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -59,10 +190,12 @@ class _AddTransactionScreenState
     }
   }
 
-  void saveTransaction() {
+  Future<void> saveTransaction() async {
+
     if (!_formKey.currentState!.validate()) return;
 
     final transaction = TransactionModel(
+      id: widget.transaction?.id,
       title: titleController.text,
       merchant: merchantController.text,
       amount: double.parse(amountController.text),
@@ -70,22 +203,39 @@ class _AddTransactionScreenState
       category: category,
       note: noteController.text,
       date: DateFormat('dd MMM yyyy').format(selectedDate),
-      receipt: null,
-      createdAt: DateTime.now().toString(),
+      receipt: widget.transaction?.receipt,
+      createdAt: widget.transaction?.createdAt ??
+          DateTime.now().toString(),
     );
 
-    context
-        .read<TransactionProvider>()
-        .addTransaction(transaction);
+    if (widget.transaction == null) {
 
-    Navigator.pop(context);
+      await context
+          .read<TransactionProvider>()
+          .addTransaction(transaction);
+
+    } else {
+
+      await context
+          .read<TransactionProvider>()
+          .updateTransaction(transaction);
+
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Tambah Transaksi"),
+        title: Text(
+          widget.transaction == null
+              ? "Tambah Transaksi"
+              : "Edit Transaksi",
+        ),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -98,6 +248,20 @@ class _AddTransactionScreenState
 
           child: Column(
             children: [
+
+              if (isScanning)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 10),
+                      Text(
+                        "AI sedang membaca struk...",
+                      ),
+                    ],
+                  ),
+                ),
 
               Card(
                 child: Column(
@@ -214,6 +378,30 @@ class _AddTransactionScreenState
                 ),
               ),
 
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: showImagePicker,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("Scan Struk"),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              if (receiptImage != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    receiptImage!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
               const SizedBox(height: 30),
 
               SizedBox(
@@ -225,8 +413,10 @@ class _AddTransactionScreenState
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text(
-                    "SIMPAN",
+                  child: Text(
+                    widget.transaction == null
+                        ? "SIMPAN"
+                        : "UPDATE",
                     style: TextStyle(fontSize: 18),
                   ),
                 ),

@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/transaction_provider.dart';
+import 'providers/profile_provider.dart';
 
 import 'screens/splash_screen.dart';
-
 void main() {
   runApp(
     MultiProvider(
@@ -15,6 +15,9 @@ void main() {
         ),
         ChangeNotifierProvider(
           create: (_) => TransactionProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ProfileProvider(),
         ),
       ],
       child: const MoneyManager(),
